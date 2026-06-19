@@ -1,0 +1,32 @@
+# Local environment files
+backend/.env
+.env
+.env.local
+.env.*.local
+
+# Python caches, builds, and virtual environments
+__pycache__/
+backend/**/__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+
+# Node.js dependencies and builds
+node_modules/
+frontend/node_modules/
+frontend/build/
+build/
+.eslintcache
+
+# Logs and system files
+*.log
+server.log
+.DS_Store
+Thumbs.db
+
+# Seed scripts or temporary files
+seed_db.py
