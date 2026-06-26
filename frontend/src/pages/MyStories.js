@@ -15,7 +15,7 @@ const parseLLM = (payload) => {
 };
 
 /* ───────── Upload panel ───────── */
-const UploadBox = ({ stories }) => {
+const UploadBox = ({ stories, setStories }) => {
     const [count, setCount] = useState(1);
     const fileRef = useRef(null);
     const [story, setStory] = useState('');
@@ -80,13 +80,22 @@ const UploadBox = ({ stories }) => {
             {status === 'success' && <div className="upload-success">Uploaded!</div>}
             {status === 'error' && <div className="upload-error">{errMsg}</div>}
 
-            <ReportModal open={showModal} onClose={() => setShowModal(false)} apiResp={apiResp} count={count} setCount={setCount} />
+            <ReportModal 
+                open={showModal} 
+                onClose={() => setShowModal(false)} 
+                apiResp={apiResp} 
+                count={count} 
+                setCount={setCount} 
+                setStories={setStories}
+                storyName={story}
+                fileName={fileName}
+            />
         </div>
     );
 };
 
 /* ───────── MyStories page ───────── */
-export const MyStories = ({ stories }) => {
+export const MyStories = ({ stories, setStories }) => {
     const [hover, setHover] = useState(null);
 
     return (
@@ -101,7 +110,7 @@ export const MyStories = ({ stories }) => {
                     </div>
 
                     {/* Upload Box always shows at the top */}
-                    <UploadBox stories={stories} />
+                    <UploadBox stories={stories} setStories={setStories} />
 
                     {stories.length === 0 ? (
                         <div className="empty-stories">
