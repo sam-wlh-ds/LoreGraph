@@ -1,74 +1,70 @@
 .knowledge-graph-container {
-    width: 100%;
-    height: 800px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    background-color: #fff;
-    margin: 20px 0;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  background-color: var(--bg-surface);
+  margin-top: 1rem;
 }
 
 .knowledge-graph-container h2 {
-    margin-top: 0;
-    color: #333;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
+  margin-top: 0;
+  color: var(--text-primary);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 #viz {
-    width: 100%;
-    height: 700px;
-    border: 1px solid #eee;
-    border-radius: 4px;
-}
-
-/* Node styling */
-.node {
-    cursor: pointer;
-}
-
-/* Relationship styling */
-.relationship {
-    cursor: pointer;
-}
-
-/* Tooltip styling */
-.vis-tooltip {
-    position: absolute;
-    visibility: hidden;
-    padding: 8px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border-radius: 4px;
-    pointer-events: none;
-    z-index: 100;
-    max-width: 300px;
-    font-size: 14px;
-    line-height: 1.4;
+  width: 100%;
+  height: 600px;
+  background-color: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 1rem;
 }
 
 /* Legend styling */
 .vis-legend {
-    position: absolute;
-    right: 20px;
-    top: 80px;
-    background: white;
-    padding: 10px;
-    border-radius: 4px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    z-index: 10;
+  position: absolute;
+  right: 2rem;
+  top: 6rem;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: 0.75rem;
+  border-radius: 6px;
+  z-index: 10;
+  color: var(--text-primary);
+  font-size: 0.85rem;
 }
 
 .vis-legend-item {
-    display: flex;
-    align-items: center;
-    margin: 5px 0;
+  display: flex;
+  align-items: center;
+  margin: 0.35rem 0;
 }
 
 .vis-legend-color {
-    width: 20px;
-    height: 20px;
-    margin-right: 8px;
-    border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+}
+
+/* Tooltip styling */
+.vis-tooltip {
+  position: absolute;
+  visibility: hidden;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 100;
+  max-width: 250px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }

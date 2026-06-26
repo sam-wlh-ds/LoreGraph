@@ -1,85 +1,120 @@
 .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, .8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
 }
 
 .modal-content {
-    width: min(90vw, 800px);
-    max-height: 90vh;
-    overflow: auto;
-    background: #1e1e1e;
-    color: #fff;
-    padding: 32px;
-    border-radius: 14px;
-    border: 1px solid #444;
-    position: relative
+  width: min(90vw, 650px);
+  max-height: 85vh;
+  overflow-y: auto;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 2.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .close-btn {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    background: transparent;
-    border: none;
-    font-size: 1.4rem;
-    color: #fff;
-    cursor: pointer
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.close-btn:hover {
+  color: var(--text-primary);
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
 }
 
 .rep-summary {
-    font-style: italic;
-    margin-bottom: 18px;
-    line-height: 1.5
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  font-style: italic;
 }
 
 .rep-score-box {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 20px
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .rep-bar {
-    flex: 1;
-    height: 12px;
-    background: #333;
-    border-radius: 6px;
-    overflow: hidden
+  flex: 1;
+  height: 8px;
+  background-color: var(--bg-base);
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .rep-bar div {
-    height: 100%;
-    background: linear-gradient(90deg, #43a047, #e53935)
+  height: 100%;
+  background-color: var(--accent);
 }
 
 .modal-content h3 {
-    color: #4fc3f7;
-    margin: 18px 0 6px;
-    font-size: 1.05rem
+  color: var(--text-primary);
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .modal-content ul {
-    padding-left: 20px;
-    line-height: 1.45;
-    margin: 0 0 10px
+  padding-left: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.modal-content li {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
 }
 
 .rec li::marker {
-    color: #43a047
+  color: var(--success);
 }
 
 .commit-btn {
-    margin-top: 18px;
-    padding: 12px 28px;
-    border: none;
-    border-radius: 8px;
-    background: #1a237e;
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.6rem 1.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background-color: var(--accent);
+  color: #ffffff;
+  transition: var(--transition);
+  margin-top: 1.5rem;
+}
+
+.commit-btn:hover {
+  background-color: var(--accent-hover);
 }
