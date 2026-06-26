@@ -91,6 +91,7 @@ def commit_script_timeline():
     doc_nlp = nlp(script)
 
     timeline = defaultdict(list)
+    current_year = "2026"
     for sent in doc_nlp.sents:
         year = None
         characters, locations = [], []
@@ -103,26 +104,34 @@ def commit_script_timeline():
             elif ent.label_ == "GPE":
                 locations.append(ent.text)
 
+        # Fallback to direct year search in sentence text if spaCy missed the DATE entity
+        if not year:
+            year = extract_year(sent.text)
+
+        if year:
+            current_year = year
+        else:
+            year = current_year
+
         matched_chars = soft_match_entities(sent.text, known_characters)
         matched_locs = soft_match_entities(sent.text, known_locations)
         characters.extend(matched_chars)
         locations.extend(matched_locs)
 
-        if year:
-            timeline[year].append({
-                "title": script_title,
-                "phrase": sent.text.strip(),
-                "characters": list(set(characters)),
-                "locations": list(set(locations)),
-                "universe": timeline_name,
-                "confidence": 0.85,
-                "version": "v1.0"
-            })
+        timeline[year].append({
+            "title": script_title,
+            "phrase": sent.text.strip(),
+            "characters": list(set(characters)),
+            "locations": list(set(locations)),
+            "universe": timeline_name,
+            "confidence": 0.85,
+            "version": "v1.0"
+        })
 
     with driver.session() as session:
         for year, events in OrderedDict(sorted(timeline.items(), key=lambda x: int(x[0]))).items():
             for event in events:
-                session.write_transaction(insert_event, year, event)
+                session.execute_write(insert_event, year, event)
 
     return jsonify({
         "message": f"[OK] Timeline from '{script_title}' committed to '{timeline_name}' successfully.",

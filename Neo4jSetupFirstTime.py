@@ -40,6 +40,7 @@ known_locations = [
 ]
 
 timeline = defaultdict(list)
+current_year = "2026"
 
 def extract_year(text):
     match = re.search(r"\b(19|20)\d{2}\b", text)
@@ -70,22 +71,29 @@ for doc in collection.find():
             elif ent.label_ == "GPE":
                 locations.append(ent.text)
 
+        # Fallback to direct year search in sentence text if spaCy missed the DATE entity
+        if not year:
+            year = extract_year(sent.text)
+
+        if year:
+            current_year = year
+        else:
+            year = current_year
 
         matched_chars = soft_match_entities(sent.text, known_characters)
         matched_locs = soft_match_entities(sent.text, known_locations)
         characters.extend(matched_chars)
         locations.extend(matched_locs)
 
-        if year:
-            timeline[year].append({
-                "title": title,
-                "phrase": sent.text.strip(),
-                "characters": list(set(characters)),  # deduplicate
-                "locations": list(set(locations)),
-                "universe": "Earth-199999",
-                "confidence": 0.85,
-                "version": "v1.0"
-            })
+        timeline[year].append({
+            "title": title,
+            "phrase": sent.text.strip(),
+            "characters": list(set(characters)),  # deduplicate
+            "locations": list(set(locations)),
+            "universe": "Earth-199999",
+            "confidence": 0.85,
+            "version": "v1.0"
+        })
 
 simple_timeline = []
 
@@ -136,7 +144,7 @@ def insert_event(tx, year, event_data):
 with driver.session() as session:
     for year, entries in OrderedDict(sorted(timeline.items(), key=lambda x: int(x[0]))).items():
         for entry in entries:
-            session.write_transaction(insert_event, year, entry)
+            session.execute_write(insert_event, year, entry)
 
 print("[OK] Full MCU timeline with rich entity modeling stored in Neo4j.")
 driver.close()

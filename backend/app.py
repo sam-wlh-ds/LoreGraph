@@ -7,7 +7,7 @@ from openai import OpenAI
 from sentence_transformers import SentenceTransformer
 
 from controllers.parser_controller import extract_text_from_pdf
-from db import summaries_collection, script_collection, reports_collection  # MongoDB connection
+from db import summaries_collection, script_collection, reports_collection, stories_collection  # MongoDB connection
 from controllers.graphql_controller import graphql_bp
 from controllers.vector_search_controller import vector_search_bp
 from controllers.commit_controller import commit_bp
@@ -135,8 +135,13 @@ respond only in the following structured json format:
 💡 ensure scoring is repeatable — the same story should always produce the same contradiction score.
 """
 
+# Load model configuration from environment
+LLM_MODEL = os.getenv("MODEL_NAME", "openrouter/free")
+
 # LLM caller
-def call_llm(prompt, model="openrouter/free"):
+def call_llm(prompt, model=None):
+    if model is None:
+        model = LLM_MODEL
     try:
         response = client_ai.chat.completions.create(
             model=model,
@@ -153,8 +158,11 @@ def call_llm(prompt, model="openrouter/free"):
         if not response or not response.choices:
             return "Error: No response or choices returned from LLM"
 
-        message = response.choices[0].message
+        choice = response.choices[0]
+        message = choice.message
         if not message or message.content is None:
+            if choice.finish_reason == 'length':
+                return "Error: The model ran out of tokens during its reasoning phase. To resolve this, please specify a non-reasoning chat model (such as 'meta-llama/llama-3.2-3b-instruct:free') as MODEL_NAME in your backend/.env."
             return "Error: Empty LLM message (content was None)"
             
         return message.content.strip()
@@ -208,10 +216,23 @@ def parse_pdf_and_run_ai():
 
     llm_result = call_llm(prompt)
 
+    if llm_result.startswith("Error"):
+        return jsonify({'error': llm_result}), 500
+
     script_title = get_next_script_title()
 
     try:
-        llm_data = json.loads(llm_result)
+        # Extract raw JSON from markdown code block if present
+        cleaned_result = llm_result.strip()
+        if cleaned_result.startswith("```"):
+            lines = cleaned_result.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned_result = "\n".join(lines).strip()
+
+        llm_data = json.loads(cleaned_result)
 
         report_doc = {
             "title": script_title,
@@ -240,10 +261,58 @@ def get_report_by_script_number():
     report = reports_collection.find_one({"title": title})
 
     if report:
+        report["_id"] = str(report["_id"])
         return jsonify(report), 200
     else:
         return jsonify({"error": f"No report found for title: {title}"}), 404
 
+
+@app.route('/neo4j-config', methods=['GET'])
+def get_neo4j_config():
+    return jsonify({
+        "url": os.getenv("NEO4J_URI"),
+        "user": os.getenv("NEO4J_USER"),
+        "password": os.getenv("NEO4J_PASS")
+    }), 200
+
+@app.route('/stories', methods=['GET'])
+def get_stories():
+    try:
+        all_stories = list(stories_collection.find())
+        serialized = []
+        for s in all_stories:
+            serialized.append({
+                "name": s.get("name"),
+                "description": s.get("description", ""),
+                "files": s.get("files", []),
+                "lastModified": s.get("lastModified", "")
+            })
+        return jsonify(serialized), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/stories', methods=['POST'])
+def save_story():
+    try:
+        data = request.get_json()
+        name = data.get("name")
+        if not name:
+            return jsonify({"error": "Story name is required"}), 400
+        stories_collection.update_one(
+            {"name": name},
+            {
+                "$set": {
+                    "name": name,
+                    "description": data.get("description", "A new Marvel Universe story"),
+                    "files": data.get("files", []),
+                    "lastModified": data.get("lastModified", "")
+                }
+            },
+            upsert=True
+        )
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/get_all_inputs', methods=['GET'])
 def get_all_inputs():
