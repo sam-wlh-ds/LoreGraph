@@ -2,44 +2,55 @@ import React, { useState } from 'react';
 import '../styles/shared.css';
 import './CreateStory.css';
 
-export const CreateStory = ({ setStories }) => {
+export const CreateStory = ({ stories, setStories }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
     // Handle creating a new story
-    const handleCreateStory = () => {
+    const handleCreateStory = async () => {
         setIsSubmitting(true);
+        setSuccessMessage('');
 
-        // Simulate a brief loading state for better UX
-        setTimeout(() => {
-            // Get the current number of stories to determine the next story number
-            setStories((prevStories) => {
-                const nextStoryNumber = prevStories.length + 1;
-                const newStoryName = `Story${nextStoryNumber}`;
+        // Determine the next story number based on current stories count
+        const nextStoryNumber = (stories?.length || 0) + 1;
+        const newStoryName = `Story${nextStoryNumber}`;
 
-                // Create new story and add to the list of stories
-                const updatedStories = [
-                    ...prevStories,
-                    { 
-                        name: newStoryName, 
-                        files: [],
-                        description: 'A new Marvel Universe story',
-                        lastModified: new Date().toLocaleDateString()
-                    }
-                ];
+        const newStory = { 
+            name: newStoryName, 
+            files: [],
+            description: 'A new Marvel Universe story',
+            lastModified: new Date().toLocaleDateString()
+        };
 
-                setSuccessMessage(`Story "${newStoryName}" created successfully!`);
-
-                // Clear success message after 3 seconds
-                setTimeout(() => {
-                    setSuccessMessage('');
-                }, 3000);
-
-                return updatedStories;
+        try {
+            // Persist the new story in MongoDB
+            const response = await fetch('http://localhost:5000/stories', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newStory)
             });
 
+            if (!response.ok) {
+                throw new Error(`Server responded with status ${response.status}`);
+            }
+
+            // Update local React state
+            setStories((prevStories) => [...(prevStories || []), newStory]);
+            setSuccessMessage(`Story "${newStoryName}" created and saved to MongoDB!`);
+
+            // Clear success message after 3 seconds
+            setTimeout(() => {
+                setSuccessMessage('');
+            }, 3000);
+
+        } catch (err) {
+            console.error("Failed to save story to MongoDB:", err);
+            setSuccessMessage(`Error: Failed to save story to database (${err.message})`);
+        } finally {
             setIsSubmitting(false);
-        }, 800);
+        }
     };
 
     return (
@@ -60,9 +71,9 @@ export const CreateStory = ({ setStories }) => {
                     <div className="create-story-form">
                         <p>Ready to create your next masterpiece? Click below to start a new story.</p>
                         <button
-                            onClick={handleCreateStory}
-                            className={`story-button ${isSubmitting ? 'submitting' : ''}`}
-                            disabled={isSubmitting}
+                             onClick={handleCreateStory}
+                             className={`story-button ${isSubmitting ? 'submitting' : ''}`}
+                             disabled={isSubmitting}
                         >
                             {isSubmitting ? 'Creating...' : 'Create New Story'}
                         </button>
