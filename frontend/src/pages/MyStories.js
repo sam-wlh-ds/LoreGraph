@@ -4,16 +4,6 @@ import { ReportModal } from '../components/ReportModal';
 import './myStories.css';
 import '../styles/shared.css';
 
-/* parse llm_response string safely */
-const parseLLM = (payload) => {
-    try {
-        const raw = payload.llm_response?.replace(/```json|```/g, '') || '{}';
-        return JSON.parse(raw);
-    } catch {
-        return null;
-    }
-};
-
 /* ───────── Upload panel ───────── */
 const UploadBox = ({ stories, setStories }) => {
     const [count, setCount] = useState(1);

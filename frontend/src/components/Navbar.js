@@ -28,7 +28,7 @@ export const Navbar = () => {
                 <li>
                     <Link
                         to="/home"
-                        className={`sidebar-link ${location.pathname === '/home' || location.pathname === '/' ? 'active' : ''}`}
+                        className={`sidebar-link ${activeItem === '/home' || activeItem === '/' ? 'active' : ''}`}
                         onMouseEnter={() => handleMouseEnter('/home')}
                         onMouseLeave={handleMouseLeave}
                     >
@@ -39,7 +39,7 @@ export const Navbar = () => {
                 <li>
                     <Link
                         to="/mystories"
-                        className={`sidebar-link ${location.pathname === '/mystories' ? 'active' : ''}`}
+                        className={`sidebar-link ${activeItem === '/mystories' ? 'active' : ''}`}
                         onMouseEnter={() => handleMouseEnter('/mystories')}
                         onMouseLeave={handleMouseLeave}
                     >
@@ -50,7 +50,7 @@ export const Navbar = () => {
                 <li>
                     <Link
                         to="/createstory"
-                        className={`sidebar-link ${location.pathname === '/createstory' ? 'active' : ''}`}
+                        className={`sidebar-link ${activeItem === '/createstory' ? 'active' : ''}`}
                         onMouseEnter={() => handleMouseEnter('/createstory')}
                         onMouseLeave={handleMouseLeave}
                     >
@@ -61,7 +61,7 @@ export const Navbar = () => {
                 <li>
                     <Link
                         to="/knowledgegraph"
-                        className={`sidebar-link ${location.pathname === '/knowledgegraph' ? 'active' : ''}`}
+                        className={`sidebar-link ${activeItem === '/knowledgegraph' ? 'active' : ''}`}
                         onMouseEnter={() => handleMouseEnter('/knowledgegraph')}
                         onMouseLeave={handleMouseLeave}
                     >

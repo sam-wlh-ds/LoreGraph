@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
-import axios from 'axios';  // <--- added axios import
+import axios from 'axios';
+import { RefinementSuggestionCard } from './RefinementSuggestionCard';
 import './reportModal.css';
 
 /* safely parse llm_response */
@@ -19,7 +20,6 @@ const parseLLM = (resp) => {
     }
 };
 
-
 export const ReportModal = ({ open, onClose, apiResp, count, setCount, setStories, storyName, fileName, hideCommit = false }) => {
     if (!open || !apiResp) return null;
     const rep = parseLLM(apiResp);
@@ -29,7 +29,7 @@ export const ReportModal = ({ open, onClose, apiResp, count, setCount, setStorie
 
     const handleCommit = async () => {
         try {
-            console.log("Sending count:", count);  // Debug line
+            console.log("Sending count:", count);
             const response = await axios.post('http://localhost:5000/commit/commit', { count });
             console.log('Commit successful:', response.data);
 
@@ -68,9 +68,12 @@ export const ReportModal = ({ open, onClose, apiResp, count, setCount, setStorie
             }
         }
     
-        setCount(count + 1);
+        if (setCount) {
+            setCount(count + 1);
+        }
     };
-    
+
+    const hasContradictions = rep.justification && rep.justification.length > 0;
 
     return createPortal(
         <div className="modal-overlay" onClick={onClose}>
@@ -82,7 +85,7 @@ export const ReportModal = ({ open, onClose, apiResp, count, setCount, setStorie
                 <p className="rep-summary">{rep.summary}</p>
 
                 <div className="rep-score-box">
-                    <span>Contradiction Score</span>
+                    <span>Contradiction Score</span>
                     <div className="rep-bar">
                         <div style={{ width: `${pct}%` }} />
                     </div>
@@ -90,17 +93,35 @@ export const ReportModal = ({ open, onClose, apiResp, count, setCount, setStorie
                 </div>
 
                 <h3>Why it contradicts MCU</h3>
-                <ul>{rep.justification.map((j, i) => <li key={i}>{j}</li>)}</ul>
+                {hasContradictions ? (
+                    <div className="report-justification-list">
+                        {rep.justification.map((j, i) => (
+                            <div key={i} className="justification-item-card">
+                                <div className="justification-header">
+                                    <span className="justification-badge">Contradiction #{i + 1}</span>
+                                    <p className="justification-text">{j}</p>
+                                </div>
+                                <RefinementSuggestionCard
+                                    scriptId={apiResp.title}
+                                    contradictionId={`c-${i}`}
+                                    contradictionText={j}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="no-contradiction-text">Fully aligned with MCU canon. No major issues detected.</p>
+                )}
 
                 <h3>Recommendations</h3>
-                <ul className="rec">{rep.recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                <ul className="rec">
+                    {(rep.recommendations || []).map((r, i) => (
+                        <li key={i}>{r}</li>
+                    ))}
+                </ul>
 
-                {/* Commit button triggers POST request */}
                 {!hideCommit && (
-                    <>
-                        <button className="commit-btn" onClick={handleCommit}>Commit to Story</button>
-                        <h1>{count}</h1>
-                    </>
+                    <button className="commit-btn" onClick={handleCommit}>Commit to Story</button>
                 )}
             </div>
         </div>,
