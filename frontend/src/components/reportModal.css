@@ -10,7 +10,7 @@
 }
 
 .modal-content {
-  width: min(90vw, 650px);
+  width: min(90vw, 750px);
   max-height: 85vh;
   overflow-y: auto;
   background-color: var(--bg-surface);
@@ -77,9 +77,53 @@
 
 .modal-content h3 {
   color: var(--text-primary);
-  margin: 1.5rem 0 0.5rem;
-  font-size: 1rem;
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.05rem;
   font-weight: 600;
+}
+
+.report-justification-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.justification-item-card {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border);
+  border-left: 3px solid #ef4444;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.justification-header {
+  margin-bottom: 0.5rem;
+}
+
+.justification-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.4rem;
+}
+
+.justification-text {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.no-contradiction-text {
+  font-size: 0.9rem;
+  color: var(--success);
+  font-style: italic;
 }
 
 .modal-content ul {
