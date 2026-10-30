@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify
 from pymongo import MongoClient
 from collections import defaultdict, OrderedDict
 from neo4j import GraphDatabase
-import spacy
 import re
 import os 
 from dotenv import load_dotenv
@@ -11,16 +10,29 @@ load_dotenv()
 
 commit_bp = Blueprint("commit", __name__)
 
-nlp = spacy.load("en_core_web_sm")
+try:
+    import spacy
+    try:
+        nlp = spacy.load("en_core_web_sm")
+    except Exception:
+        nlp = spacy.blank("en")
+        nlp.add_pipe("sentencizer")
+except Exception as e:
+    print(f"[WARN] SpaCy unavailable in commit_controller: {e}")
+    nlp = None
 
-client = MongoClient(os.getenv("MONGO_URI"))
+client = MongoClient(os.getenv("MONGO_URI"), serverSelectionTimeoutMS=2000)
 db = client["MCU"]
 script_collection = db["reports"]
 
-driver = GraphDatabase.driver(
-    os.getenv("NEO4J_URI"),
-    auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASS"))
-)
+neo4j_uri = os.getenv("NEO4J_URI")
+if neo4j_uri and os.getenv("NEO4J_PASS"):
+    driver = GraphDatabase.driver(
+        neo4j_uri,
+        auth=(os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASS"))
+    )
+else:
+    driver = None
 
 known_characters = [
     "Tony Stark", "Iron Man", "Steve Rogers", "Captain America", "Thor", "Bruce Banner",
@@ -73,6 +85,11 @@ def insert_event(tx, year, event_data):
          locations=event_data["locations"]
     )
 
+class SimpleSent:
+    def __init__(self, text):
+        self.text = text
+        self.ents = []
+
 @commit_bp.route("/commit", methods=["POST"])
 def commit_script_timeline():
     data = request.get_json()
@@ -88,11 +105,16 @@ def commit_script_timeline():
         return jsonify({"error": f"No script found with title '{script_title}'"}), 404
 
     script = doc.get("script", "")
-    doc_nlp = nlp(script)
+    if nlp is not None:
+        doc_nlp = nlp(script)
+        sents = doc_nlp.sents
+    else:
+        split_sents = [s.strip() for s in re.split(r'[.!?]+', script) if s.strip()]
+        sents = [SimpleSent(s) for s in split_sents]
 
     timeline = defaultdict(list)
     current_year = "2026"
-    for sent in doc_nlp.sents:
+    for sent in sents:
         year = None
         characters, locations = [], []
 
