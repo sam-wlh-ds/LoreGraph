@@ -1,31 +1,45 @@
+from typing import List, Dict, Any, Optional
 import os
 import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
-from sentence_transformers import SentenceTransformer
 
 from controllers.parser_controller import extract_text_from_pdf
 from db import summaries_collection, script_collection, reports_collection, stories_collection  # MongoDB connection
 from controllers.graphql_controller import graphql_bp
 from controllers.vector_search_controller import vector_search_bp
 from controllers.commit_controller import commit_bp
+from services.neo4j_service import Neo4jContextService
+from services.canon_service import CanonContextService
+from services.llm_refinement import LLMRefinementService
 
 load_dotenv()
 
 api_key = os.getenv("OPENROUTER_API_KEY")
-client_ai = OpenAI(
-    api_key=api_key,
-    base_url="https://openrouter.ai/api/v1",
+client_ai = (
+    OpenAI(
+        api_key=api_key,
+        base_url="https://openrouter.ai/api/v1",
+    )
+    if api_key
+    else None
 )
 
-model = SentenceTransformer('all-MiniLM-L6-v2', model_kwargs={'low_cpu_mem_usage': True})
+try:
+    from sentence_transformers import SentenceTransformer
+    model = SentenceTransformer('all-MiniLM-L6-v2', model_kwargs={'low_cpu_mem_usage': True})
+except Exception as e:
+    print(f"[WARN] SentenceTransformer could not be loaded: {e}")
+    model = None
 
-def embed_text(text):
-    return model.encode(text).tolist()
+def embed_text(text: str) -> List[float]:
+    if model is not None:
+        return model.encode(text).tolist()
+    return []
 
-def get_canon_context_from_vector_search(user_story_vector, limit=5):
+def get_canon_context_from_vector_search(user_story_vector: List[float], limit: int = 5):
     try:
         pipeline = [
             {
@@ -56,7 +70,7 @@ def get_canon_context_from_vector_search(user_story_vector, limit=5):
 
 
 
-def get_next_script_title():
+def get_next_script_title() -> str:
     count = reports_collection.count_documents({})
     return f"Script_{count + 1}"
 
@@ -139,7 +153,9 @@ respond only in the following structured json format:
 LLM_MODEL = os.getenv("MODEL_NAME", "openrouter/free")
 
 # LLM caller
-def call_llm(prompt, model=None):
+def call_llm(prompt: str, model: Optional[str] = None) -> str:
+    if not client_ai:
+        return "Error: OPENROUTER_API_KEY is not configured in environment."
     if model is None:
         model = LLM_MODEL
     try:
@@ -177,6 +193,10 @@ CORS(app)
 app.register_blueprint(graphql_bp)
 app.register_blueprint(vector_search_bp, url_prefix='/vector_search')
 app.register_blueprint(commit_bp, url_prefix='/commit')
+
+# Initialize AI refinement and Neo4j context services
+neo4j_context_service = Neo4jContextService()
+llm_refinement_service = LLMRefinementService()
 
 @app.route('/parse', methods=['POST'])
 def parse_pdf_and_run_ai():
@@ -265,6 +285,115 @@ def get_report_by_script_number():
         return jsonify(report), 200
     else:
         return jsonify({"error": f"No report found for title: {title}"}), 404
+
+
+@app.route('/api/analyze/suggest', methods=['POST'])
+def suggest_plot_refinements():
+    """
+    Generate 3 actionable, canon-compliant plot revisions to resolve narrative contradictions.
+    Accepts script_id or contradiction_id, queries Neo4j for character/timeline context,
+    retrieves canon rules from MongoDB, and queries OpenRouter LLM.
+    """
+    try:
+        data: Dict[str, Any] = request.get_json(silent=True) or {}
+        raw_script_id = data.get("script_id")
+        contradiction_id = data.get("contradiction_id")
+        contradiction_text: str = str(data.get("contradiction_text") or "").strip()
+        character_hint: Optional[str] = data.get("character")
+
+        # Normalize script title (e.g. 1 -> "Script_1", "1" -> "Script_1", "Script_1" -> "Script_1")
+        script_title: Optional[str] = None
+        if raw_script_id is not None:
+            if isinstance(raw_script_id, int) or (isinstance(raw_script_id, str) and str(raw_script_id).isdigit()):
+                script_title = f"Script_{raw_script_id}"
+            else:
+                script_title = str(raw_script_id)
+
+        # 1. Look up script report from MongoDB if script_id provided
+        report_doc = None
+        if script_title:
+            report_doc = reports_collection.find_one({"title": script_title})
+
+        # 2. Extract or infer contradiction details if not explicitly passed
+        if not contradiction_text and report_doc:
+            report_body = report_doc.get("report")
+            if isinstance(report_body, dict):
+                justifications = report_body.get("justification", [])
+                summary_text = report_body.get("summary", "")
+
+                # If contradiction_id specifies an index (e.g., 0, 1, or "c-0")
+                if contradiction_id is not None:
+                    target_idx = None
+                    if isinstance(contradiction_id, int):
+                        target_idx = contradiction_id
+                    elif isinstance(contradiction_id, str) and contradiction_id.startswith("c-"):
+                        try:
+                            target_idx = int(contradiction_id.replace("c-", ""))
+                        except ValueError:
+                            pass
+                    elif isinstance(contradiction_id, str) and contradiction_id.isdigit():
+                        target_idx = int(contradiction_id)
+
+                    if target_idx is not None and 0 <= target_idx < len(justifications):
+                        contradiction_text = justifications[target_idx]
+
+                if not contradiction_text and justifications:
+                    contradiction_text = " ".join(justifications)
+                elif not contradiction_text and summary_text:
+                    contradiction_text = summary_text
+
+        if not contradiction_text:
+            return jsonify({
+                "error": "Missing contradiction details. Please provide 'contradiction_text', 'script_id', or 'contradiction_id'."
+            }), 400
+
+        # 3. Query Neo4j knowledge graph for contradiction context
+        graph_context: Dict[str, Any] = neo4j_context_service.build_contradiction_graph_context(
+            contradiction_text=contradiction_text,
+            script_id=script_title
+        )
+
+        detected_entities: Dict[str, List[str]] = graph_context.get("detected_entities", {})
+        detected_chars: List[str] = list(detected_entities.get("characters", []))
+        if character_hint and character_hint not in detected_chars:
+            detected_chars.append(character_hint)
+
+        character_events = graph_context.get("character_events", [])
+        timeline_events = graph_context.get("timeline_events", [])
+        narrative_context: List[Dict[str, Any]] = character_events + [e for e in timeline_events if e not in character_events]
+
+        # 4. Fetch established canon rules from MongoDB
+        canon_rules: List[Dict[str, str]] = CanonContextService.get_relevant_canon_rules(
+            text_context=contradiction_text,
+            detected_characters=detected_chars
+        )
+
+        # 5. Call LLM Refinement Service
+        suggestions: List[Dict[str, Any]] = llm_refinement_service.get_refinement_suggestions(
+            contradiction_details=contradiction_text,
+            narrative_context=narrative_context,
+            canon_rules=canon_rules,
+            detected_characters=detected_chars
+        )
+
+        # Return JSON array (or metadata payload if requested)
+        if request.args.get("metadata") == "true" or data.get("include_metadata"):
+            return jsonify({
+                "status": "success",
+                "script_id": script_title,
+                "contradiction_id": contradiction_id,
+                "contradiction": contradiction_text,
+                "detected_characters": detected_chars,
+                "suggestions": suggestions
+            }), 200
+
+        return jsonify(suggestions), 200
+
+    except Exception as e:
+        print(f"[ERROR] Suggest endpoint error: {e}")
+        return jsonify({
+            "error": f"Failed to generate refinement suggestions: {str(e)}"
+        }), 500
 
 
 @app.route('/neo4j-config', methods=['GET'])
